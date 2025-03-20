@@ -1,0 +1,26 @@
+{
+    "name": "programming-task-generator",
+    "version": "1.0.0",
+    "description": "Generate programming tasks using OpenAI API and convert to PDF",
+    "main": "app.js",
+    "scripts": {
+        "start": "node app.js",
+        "dev": "nodemon app.js"
+    },
+    "dependencies": {
+        "canvas": "^3.1.0",
+        "dotenv": "^16.4.7",
+        "express": "^4.21.2",
+        "multer": "^1.4.5-lts.2",
+        "openai": "^4.89.0",
+        "pdf-parse": "^1.1.1",
+        "pdfkit": "^0.13.0",
+        "puppeteer": "^24.4.0"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.9"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC"
+}

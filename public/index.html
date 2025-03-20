@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programming Task Generator</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Add Mermaid CDN for client-side preview -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Programming Task Generator</h1>
+    
+    <div class="input-section">
+      <div class="form-group">
+        <label for="taskTypes">Task Types (select multiple):</label>
+        <div class="task-type-container">
+          <div class="task-types-grid">
+            <div class="task-type-item">
+              <input type="checkbox" id="type-game" value="game" class="task-type-checkbox">
+              <label for="type-game">Game</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-data-structure" value="data structure" class="task-type-checkbox">
+              <label for="type-data-structure">Data Structure</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-algorithm" value="algorithm" class="task-type-checkbox">
+              <label for="type-algorithm">Algorithm</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-web" value="web application" class="task-type-checkbox">
+              <label for="type-web">Web Application</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-desktop" value="desktop application" class="task-type-checkbox">
+              <label for="type-desktop">Desktop Application</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-mobile" value="mobile application" class="task-type-checkbox">
+              <label for="type-mobile">Mobile Application</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-database" value="database" class="task-type-checkbox">
+              <label for="type-database">Database</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-api" value="API" class="task-type-checkbox">
+              <label for="type-api">API</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-security" value="security" class="task-type-checkbox">
+              <label for="type-security">Security</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-ml" value="machine learning" class="task-type-checkbox">
+              <label for="type-ml">Machine Learning</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-automation" value="automation" class="task-type-checkbox">
+              <label for="type-automation">Automation</label>
+            </div>
+            <div class="task-type-item">
+              <input type="checkbox" id="type-testing" value="testing" class="task-type-checkbox">
+              <label for="type-testing">Testing</label>
+            </div>
+          </div>
+          <div class="custom-task-type">
+            <input type="text" id="custom-task-type" placeholder="Add custom task type...">
+            <button id="add-custom-type" class="small-btn">Add</button>
+          </div>
+        </div>
+        <div id="selected-task-types" class="selected-types">No task types selected</div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="language">Programming Language:</label>
+          <select id="language">
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="c++">C++</option>
+            <option value="c#">C#</option>
+            <option value="javascript">JavaScript</option>
+            <option value="PHP">PHP</option>
+            <option value="ruby">Ruby</option>
+            <option value="go">Go</option>
+            <option value="swift">Swift</option>
+            <option value="kotlin">Kotlin</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="outputLanguage">Output Language:</label>
+          <select id="outputLanguage">
+            <option value="English">English</option>
+            <option value="Polish">Polish</option>
+            <option value="Spanish">Spanish</option>
+            <option value="French">French</option>
+            <option value="German">German</option>
+            <option value="Italian">Italian</option>
+            <option value="Portuguese">Portuguese</option>
+            <option value="Russian">Russian</option>
+            <option value="Chinese">Chinese</option>
+            <option value="Japanese">Japanese</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- Visualization Options with Beta label -->
+      <div class="form-group viz-options">
+        <label>Visualization Options <span class="beta-label">Beta</span></label>
+        <div class="checkbox-group">
+          <div class="checkbox-item">
+            <input type="checkbox" id="includeAlgorithmChart" checked>
+            <label for="includeAlgorithmChart">Include Algorithm Flowchart</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="includeAppStructure" checked>
+            <label for="includeAppStructure">Include App Structure Diagram</label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="pattern-input-section">
+        <div class="tabs">
+          <button class="tab-button active" id="textTabBtn">Text Input</button>
+          <button class="tab-button" id="pdfTabBtn">PDF Input</button>
+        </div>
+        
+        <div class="tab-content" id="textTab">
+          <div class="form-group">
+            <label for="pattern">Pattern Template:</label>
+            <textarea id="pattern" rows="15" placeholder="Paste your instruction pattern here..."></textarea>
+          </div>
+        </div>
+        
+        <div class="tab-content hidden" id="pdfTab">
+          <div class="form-group">
+            <label for="pdfFile">Upload Pattern PDF:</label>
+            <input type="file" id="pdfFile" accept="application/pdf" />
+            <p class="input-help">PDF will be automatically processed when generating the task.</p>
+          </div>
+        </div>
+      </div>
+      
+      <button id="generateBtn">Generate PDF</button>
+    </div>
+    
+    <div id="loading" class="hidden">
+      <div class="spinner"></div>
+      <p id="loadingText">Generating your task PDF...</p>
+    </div>
+    
+    <div id="error" class="hidden">
+      <p class="error-message">An error occurred while generating the PDF. Please try again.</p>
+    </div>
+    
+    <!-- Preview area for visualizations -->
+    <div id="visualizationPreview" class="hidden">
+      <h2>Preview Visualizations</h2>
+      <div class="viz-tabs">
+        <button class="viz-tab active" data-tab="algorithmChart">Algorithm Flowchart</button>
+        <button class="viz-tab" data-tab="appStructure">App Structure</button>
+      </div>
+      
+      <div class="viz-content">
+        <div id="algorithmChartPreview" class="viz-preview">
+          <div class="mermaid-diagram"></div>
+        </div>
+        <div id="appStructurePreview" class="viz-preview hidden">
+          <div class="mermaid-diagram"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="script.js"></script>
+</body>
+</html>
