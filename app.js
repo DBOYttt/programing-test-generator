@@ -65,6 +65,38 @@ app.get('/', (req, res) => {
 // Helper function for compatibility with older Puppeteer versions
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Function to create a fallback diagram if Mermaid code has syntax issues
+function createSafeMermaidWrapper(diagramCode, title) {
+  // Basic validation - check if it has some structure
+  const hasSyntaxParts = diagramCode.includes('-->') || 
+                          diagramCode.includes('---') || 
+                          diagramCode.includes('|') || 
+                          diagramCode.includes('(');
+                          
+  if (!hasSyntaxParts) {
+    // Return a very basic fallback diagram
+    return `flowchart TD
+    error["Could not generate ${title} visualization."]
+    note["Please try again with different settings."]
+    error --> note`;
+  }
+  
+  return diagramCode;
+}
+
+// Format multiple languages into a readable string for prompts
+function formatLanguagesForPrompt(languages) {
+  if (languages.length === 1) {
+    return languages[0];
+  } else if (languages.length === 2) {
+    return `${languages[0]} and ${languages[1]}`;
+  } else {
+    const lastLang = languages[languages.length - 1];
+    const otherLangs = languages.slice(0, -1).join(', ');
+    return `${otherLangs}, and ${lastLang}`;
+  }
+}
+
 // Generate from PDF route
 app.post('/generate-from-pdf', upload.single('pdfFile'), async (req, res) => {
   let browser = null;
@@ -87,11 +119,23 @@ app.post('/generate-from-pdf', upload.single('pdfFile'), async (req, res) => {
       return res.status(400).json({ error: 'At least one task type must be selected' });
     }
     
-    const { language, outputLanguage } = req.body;
+    let languages;
+    try {
+      languages = JSON.parse(req.body.languages);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid languages format' });
+    }
+    
+    if (!Array.isArray(languages) || languages.length === 0) {
+      return res.status(400).json({ error: 'At least one programming language must be selected' });
+    }
+    
+    const { outputLanguage } = req.body;
     const withAlgorithmChart = req.body.withAlgorithmChart === 'true';
     const withAppStructure = req.body.withAppStructure === 'true';
+    const withGuiVisualization = req.body.withGuiVisualization === 'true';
     
-    console.log(`Processing PDF and generating ${taskTypes.join(', ')} task in ${language} (${outputLanguage})...`);
+    console.log(`Processing PDF and generating ${taskTypes.join(', ')} task using ${languages.join(', ')} (${outputLanguage})...`);
     
     // Extract text from the uploaded PDF
     const dataBuffer = fs.readFileSync(req.file.path);
@@ -110,6 +154,11 @@ app.post('/generate-from-pdf', upload.single('pdfFile'), async (req, res) => {
     // Format task types for the prompt
     const taskTypeString = formatTaskTypes(taskTypes);
     
+    // Create language prompt based on number of languages
+    const languagePrompt = languages.length > 1 
+      ? `Create a multi-language solution using ${formatLanguagesForPrompt(languages)}. Include code examples or explanations for each language where appropriate. Focus on how the languages would interact or how the solution would differ between languages.`
+      : `Implement the solution in ${languages[0]}.`;
+    
     // Generate content using OpenAI
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
@@ -122,7 +171,11 @@ app.post('/generate-from-pdf', upload.single('pdfFile'), async (req, res) => {
         },
         {
           role: "user",
-          content: `Pattern: ${pattern}\n\nCreate a new programming task following this pattern but for ${taskTypeString} implemented in ${language}. The task should incorporate elements from all the specified types. The task description should be written in ${outputLanguage}.`
+          content: `Pattern: ${pattern}\n\n
+                  Create a new programming task following this pattern but for ${taskTypeString}.
+                  ${languagePrompt}
+                  The task should incorporate elements from all the specified types.
+                  The task description should be written in ${outputLanguage}.`
         }
       ],
     });
@@ -133,6 +186,7 @@ app.post('/generate-from-pdf', upload.single('pdfFile'), async (req, res) => {
     // Generate visualizations if requested
     let algorithmChartCode = '';
     let appStructureCode = '';
+    let guiVisualizationCode = '';
     
     if (withAlgorithmChart || withAppStructure) {
       // Get visualizations
@@ -178,9 +232,77 @@ app.post('/generate-from-pdf', upload.single('pdfFile'), async (req, res) => {
       }
     }
     
+    // Generate GUI visualization if requested
+    if (withGuiVisualization) {
+      // Get GUI visualization with improved prompting
+      const guiVisualizationResponse = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system", 
+            content: `You are an expert in creating UI mockups using Mermaid diagrams. 
+            Generate simple, valid Mermaid code that represents the user interface described in the task.
+            Follow these strict guidelines:
+            1. Use flowchart LR or flowchart TD syntax for UI mockups
+            2. Keep node IDs short and descriptive (e.g., btn1, input1)
+            3. Avoid special characters in node text
+            4. Use simple shapes like rectangles and rounded rectangles
+            5. Use minimal styling to avoid syntax errors
+            6. Ensure all nodes are properly connected
+            7. Test your syntax mentally before providing it`
+          },
+          {
+            role: "user",
+            content: `Create a simple Mermaid diagram showing a mockup of the UI for the following task. 
+            Focus on the main screens or components only. Use the flowchart syntax (NOT stateDiagram).
+            
+            Task description: ${generatedTask}`
+          }
+        ],
+      });
+      
+      const guiVisualizationContent = guiVisualizationResponse.choices[0].message.content;
+      
+      // Extract Mermaid code block with improved regex matching
+      const guiMatch = guiVisualizationContent.match(/```(?:mermaid)?\s*(flowchart[\s\S]*?)```/i);
+      guiVisualizationCode = guiMatch ? guiMatch[1].trim() : '';
+      
+      // If no flowchart syntax is found, try to extract any mermaid code block
+      if (!guiVisualizationCode) {
+        const generalMatch = guiVisualizationContent.match(/```(?:mermaid)?\s*([\s\S]*?)```/i);
+        guiVisualizationCode = generalMatch ? generalMatch[1].trim() : '';
+      }
+      
+      // Validate that the code starts with flowchart and has basic structure
+      if (guiVisualizationCode && !guiVisualizationCode.toLowerCase().startsWith('flowchart')) {
+        guiVisualizationCode = 'flowchart TD\n    ' + guiVisualizationCode;
+      }
+      
+      // If still empty or too short, create a simple fallback diagram
+      if (!guiVisualizationCode || guiVisualizationCode.length < 20) {
+        const appType = taskTypes.find(type => 
+          type.includes('desktop') || type.includes('mobile') || type.includes('web')
+        ) || 'application';
+        
+        guiVisualizationCode = `flowchart TD
+        title["${appType.charAt(0).toUpperCase() + appType.slice(1)} UI Mockup"]
+        mainScreen["Main Screen"]
+        features["Features"]
+        
+        title --> mainScreen
+        mainScreen --> features`;
+      }
+    }
+    
+    // Apply safety wrappers to mermaid code
+    algorithmChartCode = algorithmChartCode ? createSafeMermaidWrapper(algorithmChartCode, "Algorithm") : '';
+    appStructureCode = appStructureCode ? createSafeMermaidWrapper(appStructureCode, "App Structure") : '';
+    guiVisualizationCode = guiVisualizationCode ? createSafeMermaidWrapper(guiVisualizationCode, "GUI") : '';
+    
     // Include the diagrams in the HTML content
     const taskTypeDisplay = taskTypes.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ');
-    const htmlContent = generateHtml(generatedTask, language, taskTypeDisplay, outputLanguage, algorithmChartCode, appStructureCode);
+    const languagesDisplay = languages.map(l => l.toUpperCase()).join(', ');
+    const htmlContent = generateHtml(generatedTask, languagesDisplay, taskTypeDisplay, outputLanguage, algorithmChartCode, appStructureCode, guiVisualizationCode);
     
     // Create a temporary HTML file
     tempHtmlPath = path.join(__dirname, `temp_${Date.now()}.html`);
@@ -211,7 +333,7 @@ app.post('/generate-from-pdf', upload.single('pdfFile'), async (req, res) => {
     try {
       await page.waitForFunction(() => {
         const diagrams = document.querySelectorAll('.mermaid');
-        return Array.from(diagrams).every(diagram => diagram.querySelector('svg'));
+        return Array.from(diagrams).every(diagram => diagram.querySelector('svg') || diagram.querySelector('.error-message'));
       }, { timeout: 10000 });
     } catch (e) {
       console.warn('Timeout waiting for diagrams to render, proceeding anyway');
@@ -244,7 +366,8 @@ app.post('/generate-from-pdf', upload.single('pdfFile'), async (req, res) => {
     
     // Generate filename
     const safeTaskTypes = taskTypes.join('-').toLowerCase().replace(/\s+/g, '-');
-    const fileName = `${safeTaskTypes}_${language}_${outputLanguage.toLowerCase()}.pdf`;
+    const safeLanguages = languages.join('-').toLowerCase().replace(/\s+/g, '-');
+    const fileName = `${safeTaskTypes}_${safeLanguages}_${outputLanguage.toLowerCase()}.pdf`;
     
     // Send the PDF file
     res.download(pdfPath, fileName, (err) => {
@@ -308,7 +431,7 @@ app.post('/generate', async (req, res) => {
   let tempHtmlPath = null;
   
   try {
-    const { pattern, taskTypes, language, outputLanguage, withAlgorithmChart, withAppStructure } = req.body;
+    const { pattern, taskTypes, languages, outputLanguage, withAlgorithmChart, withAppStructure, withGuiVisualization } = req.body;
     
     if (!pattern) {
       return res.status(400).json({ error: 'Pattern is required' });
@@ -318,10 +441,19 @@ app.post('/generate', async (req, res) => {
       return res.status(400).json({ error: 'At least one task type must be selected' });
     }
     
-    console.log(`Generating ${taskTypes.join(', ')} task in ${language} (${outputLanguage})...`);
+    if (!Array.isArray(languages) || languages.length === 0) {
+      return res.status(400).json({ error: 'At least one programming language must be selected' });
+    }
+    
+    console.log(`Generating ${taskTypes.join(', ')} task using ${languages.join(', ')} (${outputLanguage})...`);
     
     // Format task types for the prompt
     const taskTypeString = formatTaskTypes(taskTypes);
+    
+    // Create language prompt based on number of languages
+    const languagePrompt = languages.length > 1 
+      ? `Create a multi-language solution using ${formatLanguagesForPrompt(languages)}. Include code examples or explanations for each language where appropriate. Focus on how the languages would interact or how the solution would differ between languages.`
+      : `Implement the solution in ${languages[0]}.`;
     
     // Generate content using OpenAI
     const completion = await openai.chat.completions.create({
@@ -335,7 +467,11 @@ app.post('/generate', async (req, res) => {
         },
         {
           role: "user",
-          content: `Pattern: ${pattern}\n\nCreate a new programming task following this pattern but for ${taskTypeString} implemented in ${language}. The task should incorporate elements from all the specified types. The task description should be written in ${outputLanguage}.`
+          content: `Pattern: ${pattern}\n\n
+                  Create a new programming task following this pattern but for ${taskTypeString}.
+                  ${languagePrompt}
+                  The task should incorporate elements from all the specified types.
+                  The task description should be written in ${outputLanguage}.`
         }
       ],
     });
@@ -346,6 +482,7 @@ app.post('/generate', async (req, res) => {
     // Generate visualizations if requested
     let algorithmChartCode = '';
     let appStructureCode = '';
+    let guiVisualizationCode = '';
     
     if (withAlgorithmChart || withAppStructure) {
       // Get visualizations
@@ -391,9 +528,77 @@ app.post('/generate', async (req, res) => {
       }
     }
     
+    // Generate GUI visualization if requested
+    if (withGuiVisualization) {
+      // Get GUI visualization with improved prompting
+      const guiVisualizationResponse = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system", 
+            content: `You are an expert in creating UI mockups using Mermaid diagrams. 
+            Generate simple, valid Mermaid code that represents the user interface described in the task.
+            Follow these strict guidelines:
+            1. Use flowchart LR or flowchart TD syntax for UI mockups
+            2. Keep node IDs short and descriptive (e.g., btn1, input1)
+            3. Avoid special characters in node text
+            4. Use simple shapes like rectangles and rounded rectangles
+            5. Use minimal styling to avoid syntax errors
+            6. Ensure all nodes are properly connected
+            7. Test your syntax mentally before providing it`
+          },
+          {
+            role: "user",
+            content: `Create a simple Mermaid diagram showing a mockup of the UI for the following task. 
+            Focus on the main screens or components only. Use the flowchart syntax (NOT stateDiagram).
+            
+            Task description: ${generatedTask}`
+          }
+        ],
+      });
+      
+      const guiVisualizationContent = guiVisualizationResponse.choices[0].message.content;
+      
+      // Extract Mermaid code block with improved regex matching
+      const guiMatch = guiVisualizationContent.match(/```(?:mermaid)?\s*(flowchart[\s\S]*?)```/i);
+      guiVisualizationCode = guiMatch ? guiMatch[1].trim() : '';
+      
+      // If no flowchart syntax is found, try to extract any mermaid code block
+      if (!guiVisualizationCode) {
+        const generalMatch = guiVisualizationContent.match(/```(?:mermaid)?\s*([\s\S]*?)```/i);
+        guiVisualizationCode = generalMatch ? generalMatch[1].trim() : '';
+      }
+      
+      // Validate that the code starts with flowchart and has basic structure
+      if (guiVisualizationCode && !guiVisualizationCode.toLowerCase().startsWith('flowchart')) {
+        guiVisualizationCode = 'flowchart TD\n    ' + guiVisualizationCode;
+      }
+      
+      // If still empty or too short, create a simple fallback diagram
+      if (!guiVisualizationCode || guiVisualizationCode.length < 20) {
+        const appType = taskTypes.find(type => 
+          type.includes('desktop') || type.includes('mobile') || type.includes('web')
+        ) || 'application';
+        
+        guiVisualizationCode = `flowchart TD
+        title["${appType.charAt(0).toUpperCase() + appType.slice(1)} UI Mockup"]
+        mainScreen["Main Screen"]
+        features["Features"]
+        
+        title --> mainScreen
+        mainScreen --> features`;
+      }
+    }
+    
+    // Apply safety wrappers to mermaid code
+    algorithmChartCode = algorithmChartCode ? createSafeMermaidWrapper(algorithmChartCode, "Algorithm") : '';
+    appStructureCode = appStructureCode ? createSafeMermaidWrapper(appStructureCode, "App Structure") : '';
+    guiVisualizationCode = guiVisualizationCode ? createSafeMermaidWrapper(guiVisualizationCode, "GUI") : '';
+    
     // Include the diagrams in the HTML content
     const taskTypeDisplay = taskTypes.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ');
-    const htmlContent = generateHtml(generatedTask, language, taskTypeDisplay, outputLanguage, algorithmChartCode, appStructureCode);
+    const languagesDisplay = languages.map(l => l.toUpperCase()).join(', ');
+    const htmlContent = generateHtml(generatedTask, languagesDisplay, taskTypeDisplay, outputLanguage, algorithmChartCode, appStructureCode, guiVisualizationCode);
     
     // Create a temporary HTML file
     tempHtmlPath = path.join(__dirname, `temp_${Date.now()}.html`);
@@ -424,7 +629,7 @@ app.post('/generate', async (req, res) => {
     try {
       await page.waitForFunction(() => {
         const diagrams = document.querySelectorAll('.mermaid');
-        return Array.from(diagrams).every(diagram => diagram.querySelector('svg'));
+        return Array.from(diagrams).every(diagram => diagram.querySelector('svg') || diagram.querySelector('.error-message'));
       }, { timeout: 10000 });
     } catch (e) {
       console.warn('Timeout waiting for diagrams to render, proceeding anyway');
@@ -457,7 +662,8 @@ app.post('/generate', async (req, res) => {
     
     // Generate filename
     const safeTaskTypes = taskTypes.join('-').toLowerCase().replace(/\s+/g, '-');
-    const fileName = `${safeTaskTypes}_${language}_${outputLanguage.toLowerCase()}.pdf`;
+    const safeLanguages = languages.join('-').toLowerCase().replace(/\s+/g, '-');
+    const fileName = `${safeTaskTypes}_${safeLanguages}_${outputLanguage.toLowerCase()}.pdf`;
     
     // Send the PDF file
     res.download(pdfPath, fileName, (err) => {
@@ -521,7 +727,8 @@ function formatTaskTypes(taskTypes) {
 }
 
 // HTML generation function with proper UTF-8 support and Mermaid diagrams
-function generateHtml(content, language, taskType, outputLanguage, algorithmChartCode = '', appStructureCode = '') {
+// Updated to use languagesDisplay instead of single language parameter
+function generateHtml(content, languagesDisplay, taskType, outputLanguage, algorithmChartCode = '', appStructureCode = '', guiVisualizationCode = '') {
   // Convert markdown style headings and lists to HTML
   const htmlContent = content
     .replace(/### (.*)/g, '<h2>$1</h2>')
@@ -575,6 +782,17 @@ ${algorithmChartCode}
       <h2>Application Structure</h2>
       <div class="mermaid">
 ${appStructureCode}
+      </div>
+    </div>
+    `);
+  }
+  
+  if (guiVisualizationCode) {
+    diagramSections.push(`
+    <div class="diagram-section">
+      <h2>GUI Mockup</h2>
+      <div class="mermaid">
+${guiVisualizationCode}
       </div>
     </div>
     `);
@@ -654,6 +872,14 @@ ${appStructureCode}
       justify-content: center;
       margin: 20px 0;
     }
+    .error-message {
+      color: #d9534f; 
+      text-align: center; 
+      padding: 20px; 
+      border: 1px solid #d9534f; 
+      border-radius: 5px; 
+      margin: 20px;
+    }
     @page {
       margin: 50px;
       size: A4;
@@ -663,7 +889,7 @@ ${appStructureCode}
 <body>
   <div class="header">
     <h1>${taskType} Programming Task</h1>
-    <div class="info">Language: ${language.toUpperCase()}</div>
+    <div class="info">Languages: ${languagesDisplay}</div>
     <div class="info">Instructions in: ${outputLanguage}</div>
     <div class="date">Generated: ${new Date().toLocaleDateString()}</div>
   </div>
@@ -679,18 +905,35 @@ ${appStructureCode}
   </div>
   
   <script>
-    // Initialize Mermaid
+    // Initialize Mermaid with error handling
     mermaid.initialize({ 
       startOnLoad: true,
       theme: 'default',
       flowchart: { 
         useMaxWidth: true, 
-        htmlLabels: true
+        htmlLabels: true,
+        curve: 'basis'
       },
       securityLevel: 'loose',
       fontFamily: 'Arial',
+      errorMessages: ['Syntax error in diagram'],
+      logLevel: 'fatal'
     });
     
+    // Add additional error handling
+    document.addEventListener('DOMContentLoaded', function() {
+      window.handleMermaidError = function() {
+        const diagrams = document.querySelectorAll('.mermaid');
+        diagrams.forEach(diagram => {
+          if (!diagram.querySelector('svg')) {
+            diagram.innerHTML = '<div class="error-message">Error rendering diagram. The visualization could not be generated correctly.</div>';
+          }
+        });
+      };
+      
+      setTimeout(window.handleMermaidError, 3000);
+    });
+
     // This script will be executed during PDF generation
     (function() {
       const pageElements = document.querySelectorAll('.pageNumber');

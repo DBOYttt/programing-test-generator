@@ -14,7 +14,7 @@
     
     <div class="input-section">
       <div class="form-group">
-        <label for="taskTypes">Task Types (select multiple):</label>
+        <label for="taskTypes">Task Types:</label>
         <div class="task-type-container">
           <div class="task-types-grid">
             <div class="task-type-item">
@@ -74,38 +74,82 @@
         <div id="selected-task-types" class="selected-types">No task types selected</div>
       </div>
       
-      <div class="form-row">
-        <div class="form-group">
-          <label for="language">Programming Language:</label>
-          <select id="language">
-            <option value="python">Python</option>
-            <option value="java">Java</option>
-            <option value="c++">C++</option>
-            <option value="c#">C#</option>
-            <option value="javascript">JavaScript</option>
-            <option value="PHP">PHP</option>
-            <option value="ruby">Ruby</option>
-            <option value="go">Go</option>
-            <option value="swift">Swift</option>
-            <option value="kotlin">Kotlin</option>
-          </select>
+      <!-- Replace dropdown with language checkboxes -->
+      <div class="form-group">
+        <label for="languages">Programming Languages:</label>
+        <div class="language-container">
+          <div class="languages-grid">
+            <div class="language-item">
+              <input type="checkbox" id="lang-python" value="python" class="language-checkbox">
+              <label for="lang-python">Python</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-java" value="java" class="language-checkbox">
+              <label for="lang-java">Java</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-cpp" value="c++" class="language-checkbox">
+              <label for="lang-cpp">C++</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-csharp" value="c#" class="language-checkbox">
+              <label for="lang-csharp">C#</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-javascript" value="javascript" class="language-checkbox">
+              <label for="lang-javascript">JavaScript</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-php" value="php" class="language-checkbox">
+              <label for="lang-php">PHP</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-ruby" value="ruby" class="language-checkbox">
+              <label for="lang-ruby">Ruby</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-go" value="go" class="language-checkbox">
+              <label for="lang-go">Go</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-swift" value="swift" class="language-checkbox">
+              <label for="lang-swift">Swift</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-kotlin" value="kotlin" class="language-checkbox">
+              <label for="lang-kotlin">Kotlin</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-typescript" value="typescript" class="language-checkbox">
+              <label for="lang-typescript">TypeScript</label>
+            </div>
+            <div class="language-item">
+              <input type="checkbox" id="lang-rust" value="rust" class="language-checkbox">
+              <label for="lang-rust">Rust</label>
+            </div>
+          </div>
+          <div class="custom-language">
+            <input type="text" id="custom-language" placeholder="Add custom language...">
+            <button id="add-custom-language" class="small-btn">Add</button>
+          </div>
         </div>
-        
-        <div class="form-group">
-          <label for="outputLanguage">Output Language:</label>
-          <select id="outputLanguage">
-            <option value="English">English</option>
-            <option value="Polish">Polish</option>
-            <option value="Spanish">Spanish</option>
-            <option value="French">French</option>
-            <option value="German">German</option>
-            <option value="Italian">Italian</option>
-            <option value="Portuguese">Portuguese</option>
-            <option value="Russian">Russian</option>
-            <option value="Chinese">Chinese</option>
-            <option value="Japanese">Japanese</option>
-          </select>
-        </div>
+        <div id="selected-languages" class="selected-types">No programming languages selected</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="outputLanguage">Output Language:</label>
+        <select id="outputLanguage">
+          <option value="English">English</option>
+          <option value="Polish">Polish</option>
+          <option value="Spanish">Spanish</option>
+          <option value="French">French</option>
+          <option value="German">German</option>
+          <option value="Italian">Italian</option>
+          <option value="Portuguese">Portuguese</option>
+          <option value="Russian">Russian</option>
+          <option value="Chinese">Chinese</option>
+          <option value="Japanese">Japanese</option>
+        </select>
       </div>
       
       <!-- Visualization Options with Beta label -->
@@ -115,10 +159,17 @@
           <div class="checkbox-item">
             <input type="checkbox" id="includeAlgorithmChart" checked>
             <label for="includeAlgorithmChart">Include Algorithm Flowchart</label>
+            <span class="help-icon" data-tooltip="Generates a flowchart showing the algorithm or process flow described in the task.">?</span>
           </div>
           <div class="checkbox-item">
             <input type="checkbox" id="includeAppStructure" checked>
             <label for="includeAppStructure">Include App Structure Diagram</label>
+            <span class="help-icon" data-tooltip="Creates a diagram showing the organization and relationships between components/classes.">?</span>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="includeGuiVisualization">
+            <label for="includeGuiVisualization">Include GUI Visualization</label>
+            <span class="help-icon" data-tooltip="Creates a mockup of the user interface for desktop or mobile applications based on the task requirements.">?</span>
           </div>
         </div>
       </div>
@@ -163,6 +214,7 @@
       <div class="viz-tabs">
         <button class="viz-tab active" data-tab="algorithmChart">Algorithm Flowchart</button>
         <button class="viz-tab" data-tab="appStructure">App Structure</button>
+        <button class="viz-tab" data-tab="guiVisualization">GUI Mockup</button>
       </div>
       
       <div class="viz-content">
@@ -170,6 +222,9 @@
           <div class="mermaid-diagram"></div>
         </div>
         <div id="appStructurePreview" class="viz-preview hidden">
+          <div class="mermaid-diagram"></div>
+        </div>
+        <div id="guiVisualizationPreview" class="viz-preview hidden">
           <div class="mermaid-diagram"></div>
         </div>
       </div>

@@ -13,7 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedTaskTypesDiv = document.getElementById('selected-task-types');
     const addCustomTypeBtn = document.getElementById('add-custom-type');
     const customTaskTypeInput = document.getElementById('custom-task-type');
-    const languageSelect = document.getElementById('language');
+    const languageCheckboxes = document.querySelectorAll('.language-checkbox');
+    const selectedLanguagesDiv = document.getElementById('selected-languages');
+    const addCustomLanguageBtn = document.getElementById('add-custom-language');
+    const customLanguageInput = document.getElementById('custom-language');
     const outputLanguageSelect = document.getElementById('outputLanguage');
     const loadingDiv = document.getElementById('loading');
     const loadingText = document.getElementById('loadingText');
@@ -25,13 +28,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const pdfTab = document.getElementById('pdfTab');
     const includeAlgorithmChart = document.getElementById('includeAlgorithmChart');
     const includeAppStructure = document.getElementById('includeAppStructure');
+    const includeGuiVisualization = document.getElementById('includeGuiVisualization');
     const visualizationPreview = document.getElementById('visualizationPreview');
     const vizTabs = document.querySelectorAll('.viz-tab');
     const algorithmChartPreview = document.getElementById('algorithmChartPreview');
     const appStructurePreview = document.getElementById('appStructurePreview');
+    const guiVisualizationPreview = document.getElementById('guiVisualizationPreview');
     
     // Set up task type selection
     let selectedTaskTypes = [];
+    
+    // Set up language selection
+    let selectedLanguages = [];
     
     // Function to update the selected task types display
     function updateSelectedTaskTypes() {
@@ -49,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       
       // Add event listeners for tag removal
-      document.querySelectorAll('.remove-tag').forEach(el => {
+      document.querySelectorAll('#selected-task-types .remove-tag').forEach(el => {
         el.addEventListener('click', function() {
           const typeToRemove = this.getAttribute('data-type');
           removeTaskType(typeToRemove);
@@ -57,6 +65,37 @@ document.addEventListener('DOMContentLoaded', () => {
           // If it's one of our checkboxes, uncheck it
           document.querySelectorAll('.task-type-checkbox').forEach(checkbox => {
             if (checkbox.value === typeToRemove) {
+              checkbox.checked = false;
+            }
+          });
+        });
+      });
+    }
+    
+    // Function to update the selected languages display
+    function updateSelectedLanguages() {
+      if (selectedLanguages.length === 0) {
+        selectedLanguagesDiv.textContent = 'No programming languages selected';
+        return;
+      }
+      
+      selectedLanguagesDiv.innerHTML = '';
+      selectedLanguages.forEach(lang => {
+        const tag = document.createElement('span');
+        tag.classList.add('task-type-tag');  // Reuse the task-type-tag style
+        tag.innerHTML = `${lang} <span class="remove-tag" data-lang="${lang}">✕</span>`;
+        selectedLanguagesDiv.appendChild(tag);
+      });
+      
+      // Add event listeners for language tag removal
+      document.querySelectorAll('#selected-languages .remove-tag').forEach(el => {
+        el.addEventListener('click', function() {
+          const langToRemove = this.getAttribute('data-lang');
+          removeLanguage(langToRemove);
+          
+          // If it's one of our checkboxes, uncheck it
+          document.querySelectorAll('.language-checkbox').forEach(checkbox => {
+            if (checkbox.value === langToRemove) {
               checkbox.checked = false;
             }
           });
@@ -78,13 +117,38 @@ document.addEventListener('DOMContentLoaded', () => {
       updateSelectedTaskTypes();
     }
     
-    // Event listeners for checkboxes
+    // Add language to the selection
+    function addLanguage(lang) {
+      if (lang && !selectedLanguages.includes(lang)) {
+        selectedLanguages.push(lang);
+        updateSelectedLanguages();
+      }
+    }
+    
+    // Remove language from the selection
+    function removeLanguage(lang) {
+      selectedLanguages = selectedLanguages.filter(l => l !== lang);
+      updateSelectedLanguages();
+    }
+    
+    // Event listeners for task type checkboxes
     taskTypeCheckboxes.forEach(checkbox => {
       checkbox.addEventListener('change', function() {
         if (this.checked) {
           addTaskType(this.value);
         } else {
           removeTaskType(this.value);
+        }
+      });
+    });
+    
+    // Event listeners for language checkboxes
+    languageCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
+        if (this.checked) {
+          addLanguage(this.value);
+        } else {
+          removeLanguage(this.value);
         }
       });
     });
@@ -123,11 +187,53 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     
+    // Event listener for adding custom language
+    addCustomLanguageBtn.addEventListener('click', () => {
+      const customLang = customLanguageInput.value.trim();
+      if (customLang) {
+        addLanguage(customLang);
+        customLanguageInput.value = '';
+        
+        // Optionally create a new checkbox for this language
+        const langsGrid = document.querySelector('.languages-grid');
+        const uniqueId = `lang-${customLang.toLowerCase().replace(/\s+/g, '-')}`;
+        
+        // Only add if it doesn't exist already
+        if (!document.getElementById(uniqueId)) {
+          const newItem = document.createElement('div');
+          newItem.className = 'language-item';
+          newItem.innerHTML = `
+            <input type="checkbox" id="${uniqueId}" value="${customLang}" class="language-checkbox" checked>
+            <label for="${uniqueId}">${customLang}</label>
+          `;
+          langsGrid.appendChild(newItem);
+          
+          // Add event listener to the new checkbox
+          const newCheckbox = document.getElementById(uniqueId);
+          newCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+              addLanguage(this.value);
+            } else {
+              removeLanguage(this.value);
+            }
+          });
+        }
+      }
+    });
+    
     // Allow adding custom task type with Enter key
     customTaskTypeInput.addEventListener('keypress', event => {
       if (event.key === 'Enter') {
         event.preventDefault();
         addCustomTypeBtn.click();
+      }
+    });
+    
+    // Allow adding custom language with Enter key
+    customLanguageInput.addEventListener('keypress', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addCustomLanguageBtn.click();
       }
     });
     
@@ -157,13 +263,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Show corresponding content
         const tabId = tab.getAttribute('data-tab');
+        const allPreviews = [algorithmChartPreview, appStructurePreview, guiVisualizationPreview];
+        
+        allPreviews.forEach(preview => preview.classList.add('hidden'));
         
         if (tabId === 'algorithmChart') {
           algorithmChartPreview.classList.remove('hidden');
-          appStructurePreview.classList.add('hidden');
-        } else {
-          algorithmChartPreview.classList.add('hidden');
+        } else if (tabId === 'appStructure') {
           appStructurePreview.classList.remove('hidden');
+        } else if (tabId === 'guiVisualization') {
+          guiVisualizationPreview.classList.remove('hidden');
         }
       });
     });
@@ -171,13 +280,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Generate PDF
     generateBtn.addEventListener('click', async () => {
       const taskTypes = selectedTaskTypes;
-      const language = languageSelect.value;
+      const languages = selectedLanguages;
       const outputLanguage = outputLanguageSelect.value;
       const withAlgorithmChart = includeAlgorithmChart.checked;
       const withAppStructure = includeAppStructure.checked;
+      const withGuiVisualization = includeGuiVisualization.checked;
       
       if (taskTypes.length === 0) {
         alert('Please select at least one task type.');
+        return;
+      }
+      
+      if (languages.length === 0) {
+        alert('Please select at least one programming language.');
         return;
       }
       
@@ -207,10 +322,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const formData = new FormData();
           formData.append('pdfFile', file);
           formData.append('taskTypes', JSON.stringify(taskTypes));
-          formData.append('language', language);
+          formData.append('languages', JSON.stringify(languages));
           formData.append('outputLanguage', outputLanguage);
           formData.append('withAlgorithmChart', withAlgorithmChart);
           formData.append('withAppStructure', withAppStructure);
+          formData.append('withGuiVisualization', withGuiVisualization);
           
           response = await fetch('/generate-from-pdf', {
             method: 'POST',
@@ -237,10 +353,11 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify({ 
               pattern, 
               taskTypes, 
-              language, 
+              languages,
               outputLanguage,
               withAlgorithmChart,
-              withAppStructure
+              withAppStructure,
+              withGuiVisualization
             })
           });
         }
@@ -257,11 +374,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = await response.json();
           
           // Display the visualizations
-          showVisualizations(data.algorithmChart, data.appStructure);
+          showVisualizations(data.algorithmChart, data.appStructure, data.guiVisualization);
         } else {
           // This is a PDF file response
           const blob = await response.blob();
-          downloadPdf(blob, taskTypes.join('-'), language, outputLanguage);
+          downloadPdf(blob, taskTypes.join('-'), languages.join('-'), outputLanguage);
         }
         
       } catch (error) {
@@ -273,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     
-    function showVisualizations(algorithmChartCode, appStructureCode) {
+    function showVisualizations(algorithmChartCode, appStructureCode, guiVisualizationCode) {
       visualizationPreview.classList.remove('hidden');
       
       // Update algorithm chart diagram
@@ -295,15 +412,34 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         appStructurePreview.querySelector('.mermaid-diagram').innerHTML = 'No app structure diagram generated';
       }
+      
+      // Update GUI visualization diagram
+      if (guiVisualizationCode) {
+        const guiVisualizationContainer = guiVisualizationPreview.querySelector('.mermaid-diagram');
+        guiVisualizationContainer.innerHTML = guiVisualizationCode;
+        guiVisualizationContainer.removeAttribute('data-processed');
+        mermaid.init(undefined, guiVisualizationContainer);
+      } else {
+        guiVisualizationPreview.querySelector('.mermaid-diagram').innerHTML = 'No GUI visualization generated';
+      }
+      
+      // Set the active tab based on available visualizations
+      if (algorithmChartCode) {
+        document.querySelector('.viz-tab[data-tab="algorithmChart"]').click();
+      } else if (appStructureCode) {
+        document.querySelector('.viz-tab[data-tab="appStructure"]').click();
+      } else if (guiVisualizationCode) {
+        document.querySelector('.viz-tab[data-tab="guiVisualization"]').click();
+      }
     }
     
-    function downloadPdf(blob, taskType, language, outputLanguage) {
+    function downloadPdf(blob, taskType, languages, outputLanguage) {
       // Create a link to download the PDF
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = `${taskType}_${language}_${outputLanguage.toLowerCase()}.pdf`;
+      a.download = `${taskType}_${languages}_${outputLanguage.toLowerCase()}.pdf`;
       
       // Append to the document and trigger download
       document.body.appendChild(a);

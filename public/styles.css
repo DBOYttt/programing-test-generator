@@ -249,6 +249,68 @@
     display: flex;
     align-items: center;
     gap: 5px;
+    position: relative;
+  }
+  
+  /* Beta label styling */
+  .beta-label {
+    display: inline-block;
+    background-color: #ff6b6b;
+    color: white;
+    font-size: 0.7em;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  /* Help icon and tooltip styling */
+  .help-icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: #3498db;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 5px;
+    cursor: help;
+    position: relative;
+  }
+  
+  .help-icon:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    background-color: #333;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    width: 250px;
+    top: -5px;
+    left: 25px;
+    z-index: 1;
+    font-weight: normal;
+    font-size: 12px;
+    line-height: 1.4;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    pointer-events: none;
+  }
+  
+  .help-icon:hover::before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: 18px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent #333 transparent transparent;
+    z-index: 1;
   }
   
   /* Visualization preview styling */
@@ -319,6 +381,18 @@
       flex-direction: column;
       gap: 8px;
     }
+    
+    .help-icon:hover::after {
+      width: 200px;
+      left: auto;
+      right: 25px;
+    }
+    
+    .help-icon:hover::before {
+      left: auto;
+      right: 18px;
+      border-color: transparent transparent transparent #333;
+    }
   }
   
   @media (max-width: 400px) {
@@ -326,17 +400,53 @@
       grid-template-columns: 1fr;
     }
   }
-/* Add this to the existing CSS file */
-.beta-label {
-    display: inline-block;
-    background-color: #ff6b6b;
-    color: white;
-    font-size: 0.7em;
-    padding: 2px 6px;
-    border-radius: 10px;
-    margin-left: 8px;
-    vertical-align: middle;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  /* Add these styles to your existing CSS file */
+
+.language-container {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .languages-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  
+  .language-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .language-checkbox {
+    margin-right: 5px;
+  }
+  
+  .custom-language {
+    display: flex;
+    margin-top: 15px;
+    gap: 10px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+  }
+  
+  .custom-language input {
+    flex: 1;
+  }
+  
+  /* Media queries for responsive design */
+  @media (max-width: 600px) {
+    .languages-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (max-width: 400px) {
+    .languages-grid {
+      grid-template-columns: 1fr;
+    }
   }
