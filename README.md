@@ -81,7 +81,7 @@ The application will be available at `http://localhost:3000`.
 | OPENAI_API_KEY | Your OpenAI API key | - |
 
 ## Wiki 
-see more in Wiki tab
+see more in [Wiki](https://github.com/DBOYttt/programing-test-generator/wiki) tab
 
 ## Credits
 
