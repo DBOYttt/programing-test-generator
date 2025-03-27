@@ -36,7 +36,7 @@ A powerful web application that generates custom programming tasks with visualiz
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/programming-task-generator.git
+git clone https://github.com/DBOYttt/programming-task-generator.git
 cd programming-task-generator
 ```
 
